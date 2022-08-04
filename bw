@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+if [ "$1" == "status" ]; then
+	echo '{"status": "unlocked"}'
+	exit 0
+fi
+
+# If it's "list items --search ...", use rbw.
+if [[ "$#" -eq 4 ]] && [[ "$1" == "list" ]] && \
+   [[ "$2" == "items" ]] && [[ "$3" == "--search" ]]; then
+
+	readonly item_name="${4}"
+
+	password="$(rbw get "${item_name}" 2> /dev/null)"
+	readonly password
+
+	escaped_item_name="$(echo "${item_name}" | jq -R)"
+	readonly escaped_item_name
+
+	if [[ "${password}" == "" ]]; then
+		echo "[]"
+	else
+		json_passwd="$(echo "${password}" | jq -R)"
+		readonly json_passwd
+		cat <<-EOM
+			[{"name": ${escaped_item_name}, "login": {"password": ${json_passwd}}}]
+		EOM
+	fi
+	exit 0
+fi
+
+bw_official "$@"
+readonly bw_official_exit_code="$?"
+
+# Synchronize rbw after any possible changes.
+rbw sync
+
+exit "${bw_official_exit_code}"
